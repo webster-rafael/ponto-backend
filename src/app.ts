@@ -13,7 +13,19 @@ export const app = fastify()
 import fastifyMultipart from "@fastify/multipart"
 
 app.register(cors, {
-    origin: true, // Allow all origins for dev
+    origin: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: false,
+    maxAge: 86400,
+})
+
+// Garante que headers CORS sempre estejam presentes, mesmo em respostas de erro
+app.addHook('onSend', async (request, reply) => {
+    const origin = request.headers.origin
+    if (origin && !reply.hasHeader('Access-Control-Allow-Origin')) {
+        reply.header('Access-Control-Allow-Origin', origin)
+    }
 })
 
 import fastifyStatic from "@fastify/static"
