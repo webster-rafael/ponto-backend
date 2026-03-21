@@ -1,0 +1,220 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["public"]
+}
+
+model Company {
+  id          String  @id @default(uuid())
+  name        String
+  slug        String  @unique
+  theme_color String?
+  logo_url    String?
+  cnpj        String?
+  users       User[]
+
+  @@map("companies")
+  @@schema("public")
+}
+
+model User {
+  id             String          @id @default(uuid())
+  name           String
+  email          String          @unique
+  password_hash  String
+  company_id     String
+  created_at     DateTime        @default(now())
+  avatar_url     String?
+  cpf            String?
+  pis            String?
+  ctps           String?
+  position       String?
+  department     String?
+  justifications Justification[]
+  patrol_points  PatrolPoint[]
+  route_logs     RouteLog[]
+  records        TimeRecord[]
+  company        Company         @relation(fields: [company_id], references: [id])
+
+  @@map("users")
+  @@schema("public")
+}
+
+model TimeRecord {
+  id        String   @id @default(uuid())
+  user_id   String
+  type      String
+  timestamp DateTime
+  latitude  Float?
+  longitude Float?
+  photo_url String?
+  ip        String?
+  user      User     @relation(fields: [user_id], references: [id])
+
+  @@map("time_records")
+  @@schema("public")
+}
+
+model RouteLog {
+  id              String    @id @default(uuid())
+  user_id         String
+  start_timestamp DateTime
+  start_latitude  Float
+  start_longitude Float
+  end_timestamp   DateTime?
+  end_latitude    Float?
+  end_longitude   Float?
+  user            User      @relation(fields: [user_id], references: [id])
+
+  @@map("route_logs")
+  @@schema("public")
+}
+
+model PatrolPoint {
+  id          String          @id @default(uuid())
+  user_id     String
+  latitude    Float
+  longitude   Float
+  title       String
+  description String?
+  date        DateTime
+  created_at  DateTime        @default(now())
+  checkins    PatrolCheckin[]
+  user        User            @relation(fields: [user_id], references: [id])
+
+  @@map("patrol_points")
+  @@schema("public")
+}
+
+model PatrolCheckin {
+  id               String      @id @default(uuid())
+  patrol_point_id  String
+  start_timestamp  DateTime
+  end_timestamp    DateTime?
+  duration_seconds Int?
+  patrol_point     PatrolPoint @relation(fields: [patrol_point_id], references: [id])
+
+  @@map("patrol_checkins")
+  @@schema("public")
+}
+
+model accounts {
+  id                    String      @id
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+  admin_users           admin_users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+model admin_users {
+  id            String     @id
+  name          String
+  email         String     @unique
+  emailVerified Boolean
+  image         String?
+  role          Role       @default(GESTOR)
+  createdAt     DateTime
+  updatedAt     DateTime
+  accounts      accounts[]
+  sessions      sessions[]
+  posts         WallPost[]
+
+  @@schema("public")
+}
+
+model sessions {
+  id          String      @id
+  userId      String
+  token       String      @unique
+  expiresAt   DateTime
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime
+  updatedAt   DateTime
+  admin_users admin_users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+model verifications {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@schema("public")
+}
+
+model WallPost {
+  id            String      @id @default(uuid())
+  title         String
+  content       String
+  type          PostType    @default(INFORMATIVO)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  authorId      String
+  likesCount    Int         @default(0)
+  commentsCount Int         @default(0)
+  author        admin_users @relation(fields: [authorId], references: [id])
+
+  @@map("wall_posts")
+  @@schema("public")
+}
+
+model Justification {
+  id         String              @id @default(uuid())
+  user_id    String
+  date       DateTime
+  file_url   String
+  status     JustificationStatus @default(PENDING)
+  reason     String?
+  created_at DateTime            @default(now())
+  user       User                @relation(fields: [user_id], references: [id])
+
+  @@map("justifications")
+  @@schema("public")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  GESTOR
+  RH
+
+  @@schema("public")
+}
+
+enum PostType {
+  REUNIAO
+  IMPORTANTE
+  FOLGA
+  INFORMATIVO
+
+  @@schema("public")
+}
+
+enum JustificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@schema("public")
+}
