@@ -3,8 +3,8 @@ import { RouteLog } from "@prisma/client"
 
 interface StopRouteLogUseCaseRequest {
     routeLogId: string
-    latitude: number
-    longitude: number
+    latitude: number | null
+    longitude: number | null
     timestamp: Date
 }
 

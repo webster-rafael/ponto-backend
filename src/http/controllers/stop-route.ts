@@ -6,8 +6,8 @@ import { StopRouteLogUseCase } from "@/use-cases/stop-route-log"
 export async function stopRoute(request: FastifyRequest, reply: FastifyReply) {
     const stopRouteBodySchema = z.object({
         routeLogId: z.string().uuid(),
-        latitude: z.number(),
-        longitude: z.number(),
+        latitude: z.number().nullable().optional(),
+        longitude: z.number().nullable().optional(),
         timestamp: z.string(),
     })
 
@@ -18,8 +18,8 @@ export async function stopRoute(request: FastifyRequest, reply: FastifyReply) {
 
     const { routeLog } = await stopRouteLogUseCase.execute({
         routeLogId,
-        latitude,
-        longitude,
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
         timestamp: new Date(timestamp),
     })
 
