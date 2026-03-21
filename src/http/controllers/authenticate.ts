@@ -44,8 +44,11 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
             company: {
                 id: company.id,
                 name: company.name,
+                slug: company.slug,
                 theme_color: company.theme_color,
-                logo_url: company.logo_url
+                logo_url: company.logo_url,
+                latitude: company.latitude,
+                longitude: company.longitude,
             }
         })
 
