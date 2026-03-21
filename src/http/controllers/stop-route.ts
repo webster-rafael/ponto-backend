@@ -16,13 +16,16 @@ export async function stopRoute(request: FastifyRequest, reply: FastifyReply) {
     const routeLogsRepository = new PrismaRouteLogsRepository()
     const stopRouteLogUseCase = new StopRouteLogUseCase(routeLogsRepository)
 
-    const { routeLog } = await stopRouteLogUseCase.execute({
-        routeLogId,
-        userId: request.user.sub,
-        latitude: latitude ?? null,
-        longitude: longitude ?? null,
-        timestamp: new Date(timestamp),
-    })
-
-    return reply.status(200).send(routeLog)
+    try {
+        const { routeLog } = await stopRouteLogUseCase.execute({
+            routeLogId,
+            userId: request.user.sub,
+            latitude: latitude ?? null,
+            longitude: longitude ?? null,
+            timestamp: new Date(timestamp),
+        })
+        return reply.status(200).send(routeLog)
+    } catch (err: any) {
+        return reply.status(400).send({ message: err.message || 'Error stopping route' })
+    }
 }
