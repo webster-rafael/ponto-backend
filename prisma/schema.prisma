@@ -17,6 +17,8 @@ model Company {
   theme_color String?
   logo_url    String?
   cnpj        String?
+  latitude    Float?
+  longitude   Float?
   users       User[]
 
   @@map("companies")
