@@ -2,7 +2,8 @@ import { IRouteLogsRepository } from "../repositories/route-logs-repository"
 import { RouteLog } from "@prisma/client"
 
 interface StopRouteLogUseCaseRequest {
-    routeLogId: string
+    routeLogId?: string | null
+    userId: string
     latitude: number | null
     longitude: number | null
     timestamp: Date
@@ -17,11 +18,15 @@ export class StopRouteLogUseCase {
 
     async execute({
         routeLogId,
+        userId,
         latitude,
         longitude,
         timestamp
     }: StopRouteLogUseCaseRequest): Promise<StopRouteLogUseCaseResponse> {
-        const routeLog = await this.routeLogsRepository.findById(routeLogId)
+        // Find by ID if provided, otherwise find the latest open route for this user
+        const routeLog = routeLogId
+            ? await this.routeLogsRepository.findById(routeLogId)
+            : await this.routeLogsRepository.findLatestOpen(userId)
 
         if (!routeLog) {
             throw new Error("Route Log not found")

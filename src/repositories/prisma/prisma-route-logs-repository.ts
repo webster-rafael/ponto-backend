@@ -19,6 +19,19 @@ export class PrismaRouteLogsRepository implements IRouteLogsRepository {
         return routeLog
     }
 
+    async findLatestOpen(userId: string) {
+        const routeLog = await prisma.routeLog.findFirst({
+            where: {
+                user_id: userId,
+                end_timestamp: null,
+            },
+            orderBy: {
+                start_timestamp: 'desc',
+            },
+        })
+        return routeLog
+    }
+
     async findManyByUserId(userId: string, fromDate: Date, toDate: Date) {
         const routeLogs = await prisma.routeLog.findMany({
             where: {
