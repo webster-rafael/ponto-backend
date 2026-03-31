@@ -38,6 +38,11 @@ model User {
   ctps           String?
   position       String?
   department     String?
+  work_scale     String?
+  entry_time     String?
+  lunch_start    String?
+  lunch_end      String?
+  exit_time      String?
   justifications Justification[]
   patrol_points  PatrolPoint[]
   route_logs     RouteLog[]
