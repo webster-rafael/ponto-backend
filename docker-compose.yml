@@ -1,0 +1,12 @@
+services:
+  api:
+    build: .
+    ports:
+      - "3300:3300"
+    volumes:
+      - uploads_data:/app/uploads
+    restart: unless-stopped
+
+volumes:
+  uploads_data:
+    driver: local
