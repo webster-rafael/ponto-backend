@@ -54,15 +54,18 @@ model User {
 }
 
 model TimeRecord {
-  id        String   @id @default(uuid())
-  user_id   String
-  type      String
-  timestamp DateTime
-  latitude  Float?
-  longitude Float?
-  photo_url String?
-  ip        String?
-  user      User     @relation(fields: [user_id], references: [id])
+  id                   String   @id @default(uuid())
+  user_id              String
+  type                 String
+  timestamp            DateTime
+  latitude             Float?
+  longitude            Float?
+  photo_url            String?
+  ip                   String?
+  is_out_of_range      Boolean  @default(false)
+  out_of_range_reason  String?
+  out_of_range_status  String   @default("PENDING")
+  user                 User     @relation(fields: [user_id], references: [id])
 
   @@map("time_records")
   @@schema("public")

@@ -20,6 +20,7 @@ import { stopPatrolCheckin } from "../controllers/stop-patrol-checkin"
 import { registerJustification } from "../controllers/register-justification"
 import { fetchUserJustifications } from "../controllers/fetch-user-justifications"
 import { updateJustificationStatus } from "../controllers/update-justification-status"
+import { updateOutOfRangeStatus } from "../controllers/update-out-of-range-status"
 
 import { upload } from "../controllers/upload"
 
@@ -48,5 +49,7 @@ export async function appRoutes(app: FastifyInstance) {
     app.post('/justifications', { onRequest: [verifyJwt] }, registerJustification)
     app.get('/justifications', { onRequest: [verifyJwt] }, fetchUserJustifications)
     app.patch('/justifications/:id/status', { onRequest: [verifyJwt] }, updateJustificationStatus)
+
+    app.patch('/time-records/:id/out-of-range-status', updateOutOfRangeStatus)
 }
 

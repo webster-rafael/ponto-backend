@@ -9,6 +9,8 @@ interface CreateTimeRecordUseCaseRequest {
     photoUrl?: string
     ip?: string
     timestamp?: Date
+    isOutOfRange?: boolean
+    outOfRangeReason?: string
 }
 
 interface CreateTimeRecordUseCaseResponse {
@@ -25,7 +27,9 @@ export class CreateTimeRecordUseCase {
         longitude,
         photoUrl,
         ip,
-        timestamp
+        timestamp,
+        isOutOfRange,
+        outOfRangeReason,
     }: CreateTimeRecordUseCaseRequest): Promise<CreateTimeRecordUseCaseResponse> {
 
         const timeRecord = await this.timeRecordsRepository.create({
@@ -35,7 +39,10 @@ export class CreateTimeRecordUseCase {
             latitude,
             longitude,
             photo_url: photoUrl,
-            ip
+            ip,
+            is_out_of_range: isOutOfRange ?? false,
+            out_of_range_reason: outOfRangeReason ?? null,
+            out_of_range_status: 'PENDING',
         })
 
         return {
