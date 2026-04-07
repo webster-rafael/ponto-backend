@@ -61,6 +61,8 @@ model WorkPost {
   name       String
   is_vigia   Boolean @default(false)
   company_id String
+  latitude   Float?
+  longitude  Float?
   company    Company @relation(fields: [company_id], references: [id])
   users      User[]
 
