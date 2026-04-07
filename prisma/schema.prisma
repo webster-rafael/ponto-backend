@@ -11,15 +11,16 @@ datasource db {
 }
 
 model Company {
-  id          String  @id @default(uuid())
+  id          String     @id @default(uuid())
   name        String
-  slug        String  @unique
+  slug        String     @unique
   theme_color String?
   logo_url    String?
   cnpj        String?
   latitude    Float?
   longitude   Float?
   users       User[]
+  work_posts  WorkPost[]
 
   @@map("companies")
   @@schema("public")
@@ -48,8 +49,22 @@ model User {
   route_logs     RouteLog[]
   records        TimeRecord[]
   company        Company         @relation(fields: [company_id], references: [id])
+  post_id        String?
+  post           WorkPost?       @relation(fields: [post_id], references: [id], onDelete: SetNull)
 
   @@map("users")
+  @@schema("public")
+}
+
+model WorkPost {
+  id         String  @id @default(uuid())
+  name       String
+  is_vigia   Boolean @default(false)
+  company_id String
+  company    Company @relation(fields: [company_id], references: [id])
+  users      User[]
+
+  @@map("work_posts")
   @@schema("public")
 }
 

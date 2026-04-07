@@ -3,6 +3,7 @@ import { z } from "zod"
 import { AuthenticateUseCase } from "@/use-cases/authenticate"
 import { PrismaUsersRepository } from "@/repositories/prisma/prisma-users-repository"
 import { PrismaCompaniesRepository } from "@/repositories/prisma/prisma-companies-repository"
+import { prisma } from "@/lib/prisma"
 
 export async function authenticate(request: FastifyRequest, reply: FastifyReply) {
     const authenticateBodySchema = z.object({
@@ -33,6 +34,11 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
             },
         )
 
+        let post = null
+        if (user.post_id) {
+            post = await prisma.workPost.findUnique({ where: { id: user.post_id } })
+        }
+
         return reply.status(200).send({
             token,
             user: {
@@ -40,6 +46,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
                 name: user.name,
                 email: user.email,
                 company_id: user.company_id,
+                post_id: user.post_id ?? null,
             },
             company: {
                 id: company.id,
@@ -49,7 +56,12 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
                 logo_url: company.logo_url,
                 latitude: company.latitude,
                 longitude: company.longitude,
-            }
+            },
+            post: post ? {
+                id: post.id,
+                name: post.name,
+                is_vigia: post.is_vigia,
+            } : null,
         })
 
     } catch (err) {

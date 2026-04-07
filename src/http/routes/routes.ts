@@ -23,12 +23,16 @@ import { updateJustificationStatus } from "../controllers/update-justification-s
 import { updateOutOfRangeStatus } from "../controllers/update-out-of-range-status"
 
 import { upload } from "../controllers/upload"
+import { fetchWorkPosts } from "../controllers/fetch-work-posts"
+import { createWorkPost } from "../controllers/create-work-post"
 
 export async function appRoutes(app: FastifyInstance) {
     app.post('/users', register)
     app.post('/sessions', authenticate)
     app.post('/upload', upload)
     app.get('/companies', fetchCompanies)
+    app.get('/work-posts', fetchWorkPosts)
+    app.post('/work-posts', { onRequest: [verifyJwt] }, createWorkPost)
 
     app.post('/time-records', createTimeRecord)
     app.get('/time-records', fetchUserTimeRecords)
