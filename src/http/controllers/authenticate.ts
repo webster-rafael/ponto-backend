@@ -61,6 +61,8 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
                 id: post.id,
                 name: post.name,
                 is_vigia: post.is_vigia,
+                latitude: post.latitude,
+                longitude: post.longitude,
             } : null,
         })
 
