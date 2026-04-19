@@ -48,6 +48,8 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
                 company_id: user.company_id,
                 post_id: user.post_id ?? null,
                 work_scale: user.work_scale ?? null,
+                lunch_start: user.lunch_start ?? null,
+                lunch_end: user.lunch_end ?? null,
             },
             company: {
                 id: company.id,
