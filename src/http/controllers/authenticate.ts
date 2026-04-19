@@ -47,6 +47,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
                 email: user.email,
                 company_id: user.company_id,
                 post_id: user.post_id ?? null,
+                work_scale: user.work_scale ?? null,
             },
             company: {
                 id: company.id,
