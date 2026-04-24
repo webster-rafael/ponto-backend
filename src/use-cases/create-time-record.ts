@@ -8,7 +8,6 @@ interface CreateTimeRecordUseCaseRequest {
     longitude?: number
     photoUrl?: string
     ip?: string
-    timestamp?: Date
     isOutOfRange?: boolean
     outOfRangeReason?: string
 }
@@ -27,15 +26,21 @@ export class CreateTimeRecordUseCase {
         longitude,
         photoUrl,
         ip,
-        timestamp,
         isOutOfRange,
         outOfRangeReason,
     }: CreateTimeRecordUseCaseRequest): Promise<CreateTimeRecordUseCaseResponse> {
 
+        // Sempre usa o horário real do servidor (fuso de Cuiabá - America/Cuiaba).
+        // O timestamp enviado pelo cliente é descartado para impedir fraudes
+        // por mudança de horário no celular ou computador do colaborador.
+        const nowInCuiaba = new Date(
+            new Date().toLocaleString('en-US', { timeZone: 'America/Cuiaba' })
+        )
+
         const timeRecord = await this.timeRecordsRepository.create({
             user_id: userId,
             type,
-            timestamp: timestamp || new Date(),
+            timestamp: nowInCuiaba,
             latitude,
             longitude,
             photo_url: photoUrl,
