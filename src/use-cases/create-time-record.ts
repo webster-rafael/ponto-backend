@@ -30,17 +30,15 @@ export class CreateTimeRecordUseCase {
         outOfRangeReason,
     }: CreateTimeRecordUseCaseRequest): Promise<CreateTimeRecordUseCaseResponse> {
 
-        // Sempre usa o horário real do servidor (fuso de Cuiabá - America/Cuiaba).
-        // O timestamp enviado pelo cliente é descartado para impedir fraudes
-        // por mudança de horário no celular ou computador do colaborador.
-        const nowInCuiaba = new Date(
-            new Date().toLocaleString('en-US', { timeZone: 'America/Cuiaba' })
-        )
+        // Sempre usa o horário real do SERVIDOR (UTC).
+        // O timestamp do cliente é completamente ignorado para impedir fraudes.
+        // O frontend é responsável por exibir no fuso de Cuiabá (America/Cuiaba).
+        const serverTimestamp = new Date()
 
         const timeRecord = await this.timeRecordsRepository.create({
             user_id: userId,
             type,
-            timestamp: nowInCuiaba,
+            timestamp: serverTimestamp,
             latitude,
             longitude,
             photo_url: photoUrl,
