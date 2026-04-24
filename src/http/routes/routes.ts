@@ -25,8 +25,10 @@ import { updateOutOfRangeStatus } from "../controllers/update-out-of-range-statu
 import { upload } from "../controllers/upload"
 import { fetchWorkPosts } from "../controllers/fetch-work-posts"
 import { createWorkPost } from "../controllers/create-work-post"
+import { serverTime } from "../controllers/server-time"
 
 export async function appRoutes(app: FastifyInstance) {
+    app.get('/server-time', serverTime)
     app.post('/users', register)
     app.post('/sessions', authenticate)
     app.post('/upload', upload)
