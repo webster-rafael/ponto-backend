@@ -27,6 +27,7 @@ import { upload } from "../controllers/upload"
 import { fetchWorkPosts } from "../controllers/fetch-work-posts"
 import { createWorkPost } from "../controllers/create-work-post"
 import { serverTime } from "../controllers/server-time"
+import { getProfile } from "../controllers/get-profile"
 
 export async function appRoutes(app: FastifyInstance) {
     app.get('/server-time', serverTime)
@@ -41,6 +42,7 @@ export async function appRoutes(app: FastifyInstance) {
     app.get('/time-records', fetchUserTimeRecords)
 
     /** Authenticated */
+    app.get('/me', { onRequest: [verifyJwt] }, getProfile)
     app.patch('/profile', { onRequest: [verifyJwt] }, updateProfile)
     app.patch('/password', { onRequest: [verifyJwt] }, updatePassword)
 

@@ -32,6 +32,7 @@ import fastifyStatic from "@fastify/static"
 import path from "node:path"
 
 app.register(fastifyMultipart, {
+    attachFieldsToBody: true,
     limits: {
         fileSize: 10 * 1024 * 1024, // 10MB
     }
