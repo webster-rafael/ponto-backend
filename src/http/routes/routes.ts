@@ -21,6 +21,7 @@ import { registerJustification } from "../controllers/register-justification"
 import { fetchUserJustifications } from "../controllers/fetch-user-justifications"
 import { updateJustificationStatus } from "../controllers/update-justification-status"
 import { updateOutOfRangeStatus } from "../controllers/update-out-of-range-status"
+import { updatePushToken } from "../controllers/update-push-token"
 
 import { upload } from "../controllers/upload"
 import { fetchWorkPosts } from "../controllers/fetch-work-posts"
@@ -57,5 +58,7 @@ export async function appRoutes(app: FastifyInstance) {
     app.patch('/justifications/:id/status', { onRequest: [verifyJwt] }, updateJustificationStatus)
 
     app.patch('/time-records/:id/out-of-range-status', updateOutOfRangeStatus)
+
+    app.patch('/push-token', { onRequest: [verifyJwt] }, updatePushToken)
 }
 

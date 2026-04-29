@@ -44,6 +44,7 @@ model User {
   lunch_start    String?
   lunch_end      String?
   exit_time      String?
+  push_token     String?
   justifications Justification[]
   patrol_points  PatrolPoint[]
   route_logs     RouteLog[]
