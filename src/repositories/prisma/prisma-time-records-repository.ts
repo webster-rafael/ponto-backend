@@ -34,10 +34,41 @@ export class PrismaTimeRecordsRepository implements ITimeRecordsRepository {
         const timeRecords = await prisma.timeRecord.findMany({
             where: whereClause,
             orderBy: {
-                timestamp: 'desc' // History usually wants newest first
+                timestamp: 'desc'
             }
         })
 
         return timeRecords
+    }
+
+    async fetchActiveShift(userId: string): Promise<TimeRecord[]> {
+        // 18h cobre qualquer turno real (até noturnos longos de 12h-16h).
+        // Se passaram mais de 18h sem saída, considera que o colaborador esqueceu — começa do zero.
+        const since = new Date(Date.now() - 18 * 60 * 60 * 1000)
+
+        const recent = await prisma.timeRecord.findMany({
+            where: {
+                user_id: userId,
+                timestamp: { gte: since },
+            },
+            orderBy: { timestamp: 'desc' },
+        })
+
+        if (recent.length === 0) return []
+
+        // Se o registro mais recente é saida, não há turno aberto
+        if (recent[0].type === 'saida') return []
+
+        // Retorna todos os registros do turno aberto (mesmo grupo contíguo)
+        // Um novo turno começa após uma saida, então pegamos tudo até a última saida (exclusive)
+        const shiftRecords: TimeRecord[] = []
+        for (const record of recent) {
+            if (record.type === 'saida') break
+            shiftRecords.push(record)
+        }
+
+        // Inclui a última saida se existir (para ter o contexto completo do grupo anterior)
+        // Na prática retornamos só os registros sem saida — o frontend determina o próximo passo
+        return shiftRecords
     }
 }

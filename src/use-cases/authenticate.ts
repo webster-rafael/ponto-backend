@@ -3,6 +3,8 @@ import { ICompaniesRepository } from "@/repositories/companies-repository"
 import { User, Company } from "@prisma/client"
 import { compare } from "bcryptjs"
 
+const GOOGLE_PLAY_REVIEW_EMAIL = "googleplay@genialseg.app"
+
 interface AuthenticateUseCaseRequest {
     email: string
     password: string
@@ -39,8 +41,10 @@ export class AuthenticateUseCase {
             throw new Error("Company not found")
         }
 
-        // The user must belong to the selected company
-        if (user.company_id !== companyId) {
+        const isGooglePlayReviewUser = user.email.toLowerCase() === GOOGLE_PLAY_REVIEW_EMAIL
+
+        // The user must belong to the selected company, except the Google Play review account.
+        if (user.company_id !== companyId && !isGooglePlayReviewUser) {
             throw new Error("Usuário não pertence a esta empresa")
         }
 

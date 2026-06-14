@@ -7,6 +7,7 @@
     "build": "tsc && tsc-alias",
     "start": "node build/src/server.js",
     "dev": "tsx watch src/server.ts",
+    "seed:google-play-review": "tsx prisma/seed-google-play-review.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
