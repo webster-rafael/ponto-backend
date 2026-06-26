@@ -40,6 +40,7 @@ model User {
   position       String?
   department     String?
   work_scale     String?
+  work_start_date DateTime?
   entry_time     String?
   lunch_start    String?
   lunch_end      String?

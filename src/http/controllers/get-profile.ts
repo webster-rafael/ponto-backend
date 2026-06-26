@@ -23,6 +23,7 @@ export async function getProfile(request: FastifyRequest, reply: FastifyReply) {
             company_id: user.company_id,
             post_id: user.post_id ?? null,
             work_scale: user.work_scale ?? null,
+            work_start_date: (user as any).work_start_date ?? null,
             entry_time: user.entry_time ?? null,
             exit_time: user.exit_time ?? null,
             lunch_start: user.lunch_start ?? null,
