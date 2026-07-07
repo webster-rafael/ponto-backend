@@ -43,6 +43,8 @@ export function isRestDay(
             const daysSinceStart = diffInCuiabaCalendarDays(date, workStartDate);
             return daysSinceStart >= 0 && daysSinceStart % 3 !== 0;
         }
+        case "vigia":
+            return false;
         default:
             return false;
     }

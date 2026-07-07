@@ -1,4 +1,5 @@
 import { ITimeRecordsRepository } from "@/repositories/time-records-repository"
+import { prisma } from "@/lib/prisma"
 import { TimeRecord } from "@prisma/client"
 
 interface FetchActiveShiftUseCaseRequest {
@@ -14,7 +15,14 @@ export class FetchActiveShiftUseCase {
     constructor(private timeRecordsRepository: ITimeRecordsRepository) { }
 
     async execute({ userId }: FetchActiveShiftUseCaseRequest): Promise<FetchActiveShiftUseCaseResponse> {
-        const records = await this.timeRecordsRepository.fetchActiveShift(userId)
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { work_scale: true },
+        })
+        const records = await this.timeRecordsRepository.fetchActiveShift(
+            userId,
+            user?.work_scale === 'vigia' ? { maxAgeHours: 24 * 30 } : undefined
+        )
 
         const sorted = [...records].sort(
             (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()

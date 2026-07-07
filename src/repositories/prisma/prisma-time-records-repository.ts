@@ -41,10 +41,11 @@ export class PrismaTimeRecordsRepository implements ITimeRecordsRepository {
         return timeRecords
     }
 
-    async fetchActiveShift(userId: string): Promise<TimeRecord[]> {
-        // 18h cobre qualquer turno real (até noturnos longos de 12h-16h).
-        // Se passaram mais de 18h sem saída, considera que o colaborador esqueceu — começa do zero.
-        const since = new Date(Date.now() - 18 * 60 * 60 * 1000)
+    async fetchActiveShift(userId: string, options?: { maxAgeHours?: number }): Promise<TimeRecord[]> {
+        // Por padrão, 18h cobre turnos reais longos.
+        // Escalas especiais podem ampliar essa janela sem mudar o fluxo comum.
+        const maxAgeHours = options?.maxAgeHours ?? 18
+        const since = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000)
 
         const recent = await prisma.timeRecord.findMany({
             where: {
