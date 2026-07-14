@@ -84,6 +84,9 @@ model TimeRecord {
   is_out_of_range      Boolean  @default(false)
   out_of_range_reason  String?
   out_of_range_status  String   @default("PENDING")
+  schedule_deviation_minutes        Int?
+  schedule_deviation_type           String?
+  requires_schedule_justification   Boolean  @default(false)
   user                 User     @relation(fields: [user_id], references: [id])
 
   @@map("time_records")
