@@ -86,5 +86,18 @@ check(
     null
 )
 
+// Reentrada após saída antecipada: voltou às 16:00 (bem longe do entryTime 07:00), mas
+// não é a primeira entrada do dia -> não deve gerar "atraso" absurdo.
+check(
+    "reentrada às 16:00 (isFirstEntradaOfDay=false) -> sem pendência, mesmo longe do entryTime",
+    computeScheduleDeviation({ type: "entrada", timestamp: cuiabaTime(16, 0), entryTime: "07:00", exitTime: "18:00", isFirstEntradaOfDay: false }),
+    null
+)
+check(
+    "mesma entrada às 16:00, mas sendo a primeira do dia -> ENTRADA_ATRASADA de verdade",
+    computeScheduleDeviation({ type: "entrada", timestamp: cuiabaTime(16, 0), entryTime: "07:00", exitTime: "18:00", isFirstEntradaOfDay: true }),
+    { minutes: 540, type: "ENTRADA_ATRASADA" }
+)
+
 console.log(`\n${passed} passaram, ${failed} falharam`)
 if (failed > 0) process.exit(1)

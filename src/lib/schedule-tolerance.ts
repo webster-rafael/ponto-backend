@@ -16,6 +16,10 @@ interface ComputeScheduleDeviationParams {
     timestamp: Date;
     entryTime?: string | null;
     exitTime?: string | null;
+    // Reentrada após uma saída no mesmo dia (ex: voltou de uma saída antecipada) não
+    // tem hora de entrada programada pra comparar — só a PRIMEIRA entrada do dia é
+    // avaliada contra entryTime. Sem isso, uma volta às 16h vira "atraso" de horas.
+    isFirstEntradaOfDay?: boolean;
 }
 
 function parseHHMM(value: string): { hours: number; minutes: number } | null {
@@ -46,7 +50,10 @@ export function computeScheduleDeviation({
     timestamp,
     entryTime,
     exitTime,
+    isFirstEntradaOfDay = true,
 }: ComputeScheduleDeviationParams): ScheduleDeviation | null {
+    if (type === "entrada" && !isFirstEntradaOfDay) return null;
+
     const scheduledTimeStr = type === "entrada" ? entryTime : type === "saida" ? exitTime : null;
     if (!scheduledTimeStr) return null;
 

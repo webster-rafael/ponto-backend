@@ -80,6 +80,8 @@ async function main() {
         }, { minutes: null, type: null, requires: false })
 
         // Caso 2: entrada 20min atrasada -> pendência ENTRADA_ATRASADA.
+        // Limpa a entrada do caso 1 pra essa também contar como 1ª entrada do dia.
+        await prisma.timeRecord.deleteMany({ where: { user_id: userId, type: "entrada" } })
         await prisma.user.update({ where: { id: userId }, data: { entry_time: cuiabaHHMM(-20) } })
         const r2 = await fetch(`${baseUrl}/time-records`, {
             method: "POST",
@@ -92,6 +94,18 @@ async function main() {
             type: rec2.schedule_deviation_type,
             requires: rec2.requires_schedule_justification,
         }, { minutes: 20, type: "ENTRADA_ATRASADA", requires: true })
+
+        // Confere também via GET /time-records que os campos persistiram corretamente
+        // (checa aqui, antes que casos seguintes limpem as entradas do dia).
+        const listRes = await fetch(`${baseUrl}/time-records?userId=${userId}&date=${todayCuiabaKey()}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+        const list = await listRes.json()
+        const persisted = list.find((r: any) => r.id === rec2.id)
+        check("GET /time-records reflete o desvio persistido do caso 2", {
+            minutes: persisted?.schedule_deviation_minutes,
+            type: persisted?.schedule_deviation_type,
+        }, { minutes: 20, type: "ENTRADA_ATRASADA" })
 
         // Caso 3: saída 30min antes do horário programado -> SAIDA_ANTECIPADA.
         await prisma.user.update({ where: { id: userId }, data: { exit_time: cuiabaHHMM(30) } })
@@ -156,6 +170,8 @@ async function main() {
         })
 
         // Caso 7: GET /punch-preview em dia normal com 20min de atraso -> desvio avisado antes.
+        // Limpa entradas anteriores do dia pra essa contar como 1ª entrada.
+        await prisma.timeRecord.deleteMany({ where: { user_id: userId, type: "entrada" } })
         await prisma.user.update({
             where: { id: userId },
             data: { work_scale: null, work_start_date: null, entry_time: cuiabaHHMM(-20), exit_time: "23:59" },
@@ -167,16 +183,22 @@ async function main() {
             scheduleDeviation: { minutes: 20, type: "ENTRADA_ATRASADA" },
         })
 
-        // Confere também via GET /time-records que os campos persistiram corretamente.
-        const listRes = await fetch(`${baseUrl}/time-records?userId=${userId}&date=${todayCuiabaKey()}`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-        const list = await listRes.json()
-        const persisted = list.find((r: any) => r.id === rec2.id)
-        check("GET /time-records reflete o desvio persistido do caso 2", {
-            minutes: persisted?.schedule_deviation_minutes,
-            type: persisted?.schedule_deviation_type,
-        }, { minutes: 20, type: "ENTRADA_ATRASADA" })
+        // Caso 8 (reentrada após saída antecipada): sai bem antes do exit_time, volta a
+        // bater "entrada" longe do entry_time original -> não pode virar "atraso" absurdo.
+        await prisma.user.update({ where: { id: userId }, data: { work_scale: null, work_start_date: null, entry_time: "07:00", exit_time: "23:59" } })
+        await fetch(`${baseUrl}/time-records`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, type: "entrada" }) })
+        await fetch(`${baseUrl}/time-records`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, type: "saida" }) })
+        const r8 = await fetch(`${baseUrl}/time-records`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, type: "entrada" }) })
+        const rec8 = await r8.json()
+        check("reentrada (2ª entrada do dia) não gera pendência de atraso contra o entry_time original", {
+            minutes: rec8.schedule_deviation_minutes,
+            type: rec8.schedule_deviation_type,
+            requires: rec8.requires_schedule_justification,
+        }, { minutes: null, type: null, requires: false })
+
+        const p8 = await fetch(`${baseUrl}/punch-preview?userId=${userId}&type=entrada`)
+        const pd8 = await p8.json()
+        check("preview também concorda: reentrada não é desvio de horário", pd8.scheduleDeviation, null)
     } finally {
         // Limpa os dados de teste para não poluir o banco compartilhado.
         await prisma.timeRecord.deleteMany({ where: { user_id: userId } })
