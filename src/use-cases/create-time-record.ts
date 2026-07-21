@@ -1,7 +1,5 @@
 import { ITimeRecordsRepository } from "@/repositories/time-records-repository"
-import { prisma } from "@/lib/prisma"
-import { isRestDay } from "@/lib/work-schedule"
-import { computeScheduleDeviation } from "@/lib/schedule-tolerance"
+import { PreviewPunchUseCase } from "@/use-cases/preview-punch"
 import { TimeRecord } from "@prisma/client"
 
 interface CreateTimeRecordUseCaseRequest {
@@ -37,26 +35,15 @@ export class CreateTimeRecordUseCase {
         // O timestamp do cliente é completamente ignorado para impedir fraudes.
         // O frontend é responsável por exibir no fuso de Cuiabá (America/Cuiaba).
         const serverTimestamp = new Date()
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { work_scale: true, work_start_date: true, entry_time: true, exit_time: true },
-        })
-        const isExtraOnRestDay = isRestDay(
-            user?.work_scale,
-            serverTimestamp,
-            user?.work_start_date ?? null
-        )
-        const needsApproval = (isOutOfRange ?? false) || isExtraOnRestDay
 
-        // Turno vigia não segue horário fixo de entrada/saída — regra de tolerância não se aplica.
-        const scheduleDeviation = user?.work_scale === 'vigia'
-            ? null
-            : computeScheduleDeviation({
-                type,
-                timestamp: serverTimestamp,
-                entryTime: user?.entry_time,
-                exitTime: user?.exit_time,
-            })
+        // Mesma decisão exposta em GET /punch-preview: o que o app viu antes de bater
+        // é, por construção, o que a gravação aplica.
+        const { isExtraOnRestDay, scheduleDeviation } = await new PreviewPunchUseCase().execute({
+            userId,
+            type,
+            timestamp: serverTimestamp,
+        })
+        const needsApproval = (isOutOfRange ?? false) || isExtraOnRestDay
 
         const timeRecord = await this.timeRecordsRepository.create({
             user_id: userId,

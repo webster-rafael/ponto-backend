@@ -6,6 +6,7 @@ import { fetchCompanies } from "../controllers/fetch-companies"
 import { createTimeRecord } from "../controllers/create-time-record"
 import { fetchUserTimeRecords } from "../controllers/fetch-user-time-records"
 import { fetchActiveShift } from "../controllers/fetch-active-shift"
+import { punchPreview } from "../controllers/punch-preview"
 import { updateProfile } from "../controllers/update-profile"
 import { updatePassword } from "../controllers/update-password"
 import { verifyJwt } from "../middlewares/verify-jwt"
@@ -42,6 +43,7 @@ export async function appRoutes(app: FastifyInstance) {
     app.post('/time-records', createTimeRecord)
     app.get('/time-records', fetchUserTimeRecords)
     app.get('/active-shift', fetchActiveShift)
+    app.get('/punch-preview', punchPreview)
 
     /** Authenticated */
     app.get('/me', { onRequest: [verifyJwt] }, getProfile)

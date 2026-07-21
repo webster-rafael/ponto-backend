@@ -121,6 +121,52 @@ async function main() {
             requires: rec4.requires_schedule_justification,
         }, { minutes: null, type: null, requires: false })
 
+        // Caso 5 (caso Darlete): batida em dia de folga -> vira pendência de hora extra,
+        // e a régua de tolerância NÃO se aplica junto (sem pendência dupla de atraso).
+        // Escala 12x36 com início ontem => hoje é dia 1 (ímpar) = folga.
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                work_scale: "12x36",
+                work_start_date: new Date(Date.now() - 24 * 60 * 60 * 1000),
+                entry_time: cuiabaHHMM(-90), // 90min "atrasado" — não pode gerar pendência de atraso em folga
+            },
+        })
+        const r5 = await fetch(`${baseUrl}/time-records`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, type: "entrada" }),
+        })
+        const rec5 = await r5.json()
+        check("batida em dia de folga -> hora extra pendente, SEM pendência de atraso junto", {
+            reason: rec5.out_of_range_reason,
+            outOfRange: rec5.is_out_of_range,
+            minutes: rec5.schedule_deviation_minutes,
+            type: rec5.schedule_deviation_type,
+            requires: rec5.requires_schedule_justification,
+        }, { reason: "Hora extra em dia de folga", outOfRange: true, minutes: null, type: null, requires: false })
+
+        // Caso 6: GET /punch-preview em dia de folga -> app fica sabendo ANTES de bater
+        // (usuário ainda está com a config 12x36/folga do caso 5).
+        const p6 = await fetch(`${baseUrl}/punch-preview?userId=${userId}&type=entrada`)
+        const pd6 = await p6.json()
+        check("preview em dia de folga -> isExtraOnRestDay true, sem régua de tolerância", pd6, {
+            isExtraOnRestDay: true,
+            scheduleDeviation: null,
+        })
+
+        // Caso 7: GET /punch-preview em dia normal com 20min de atraso -> desvio avisado antes.
+        await prisma.user.update({
+            where: { id: userId },
+            data: { work_scale: null, work_start_date: null, entry_time: cuiabaHHMM(-20), exit_time: "23:59" },
+        })
+        const p7 = await fetch(`${baseUrl}/punch-preview?userId=${userId}&type=entrada`)
+        const pd7 = await p7.json()
+        check("preview com 20min de atraso -> ENTRADA_ATRASADA antes de bater", pd7, {
+            isExtraOnRestDay: false,
+            scheduleDeviation: { minutes: 20, type: "ENTRADA_ATRASADA" },
+        })
+
         // Confere também via GET /time-records que os campos persistiram corretamente.
         const listRes = await fetch(`${baseUrl}/time-records?userId=${userId}&date=${todayCuiabaKey()}`, {
             headers: { Authorization: `Bearer ${token}` },
