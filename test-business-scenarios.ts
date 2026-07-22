@@ -108,22 +108,10 @@ async function main() {
             requires: s4s.requires_schedule_justification, type: s4s.schedule_deviation_type,
         }, { requires: false, type: null })
 
-        // ── Cenário 3+4: "não tem hora extra" quando é desconto (SAIDA_ANTECIPADA / ENTRADA_ATRASADA) ──
-        // Confirma no cálculo de horas do dashboard: mesmo aprovado, esses dois tipos nunca
-        // viram hora extra — só entram como desconto natural (menos tempo trabalhado).
-        {
-            const { computeDayMinutes } = await import("../dashboard/src/lib/attendance-hours")
-            const day = new Date()
-            const records = [
-                { id: "e1", type: "entrada", timestamp: new Date(day.setHours(8, 40, 0, 0)), requires_schedule_justification: true, schedule_deviation_minutes: 40, schedule_deviation_type: "ENTRADA_ATRASADA" },
-                { id: "s1", type: "saida", timestamp: new Date(new Date(day).setHours(17, 30, 0, 0)), requires_schedule_justification: true, schedule_deviation_minutes: 30, schedule_deviation_type: "SAIDA_ANTECIPADA" },
-            ]
-            const semAprovacao = computeDayMinutes(records as any, day, false, "08:00", "18:00", false)
-            const comAprovacao = computeDayMinutes(records as any, day, false, "08:00", "18:00", true)
-            check("Atraso/saída antecipada NUNCA viram hora extra (aprovado ou não)", {
-                extraSem: semAprovacao.extraMinutes, extraCom: comAprovacao.extraMinutes,
-            }, { extraSem: 0, extraCom: 0 })
-        }
+        // Nota: "atraso/saída antecipada nunca viram hora extra" é verificado no cálculo
+        // de horas do DASHBOARD (repositório separado do backend) — ver
+        // dashboard/test-attendance-hours.ts, caso "atraso 1h + saída antecipada 1h".
+
         // ── Cenário 5: entrada atrasada + saída antecipada, ambas justificadas -> DUAS
         // justificativas pendentes no mesmo dia, nenhuma sobrescrevendo a outra. ──
         await resetDay(userId)
