@@ -28,6 +28,12 @@ export interface EvaluatePunchResult {
     // Só não-nulo quando punchType === 'saida' fecha um turno aberto e o excedente
     // sobre a carga contratada (para quem tem does_overtime) passa da tolerância.
     overtimePreview: { minutes: number } | null;
+    // true quando essa batida COMEÇARIA um turno novo (sem turno aberto pra
+    // continuar) num dia de folga programada, pra um colaborador sem does_overtime —
+    // o chamador deve rejeitar. Nunca bloqueia a continuação/fechamento de um turno
+    // que já estava aberto (turno noturno, multi-dia, vigia em viagem), só o início
+    // de um turno novo no dia de folga em si.
+    restDayPunchBlocked: boolean;
 }
 
 function computeExpectedNextType(openShift: Shift | undefined, config: EmployeeScheduleConfig): PunchType | null {
@@ -61,12 +67,19 @@ export function evaluatePunch(input: EvaluatePunchInput): EvaluatePunchResult {
     const usedPunchTypes = Array.from(
         new Set(openShift?.records.map(r => r.type).filter(isPunchType) ?? [])
     ) as PunchType[];
-    const expectedNextType = computeExpectedNextType(openShift, config);
 
     // Dia de folga é decidido pelo dia em que o TURNO começou — um turno
     // sexta-23h→sábado-01h é julgado pela sexta, não pelo sábado.
     const restDayReferenceDate = openShift ? openShift.records[0].timestamp : timestamp;
     const isRestDay = computeIsRestDay(config, restDayReferenceDate);
+
+    // Sem turno aberto pra continuar + dia de folga + sem autorização de hora extra
+    // = essa batida estaria começando trabalho novo num dia que o colaborador não
+    // deveria trabalhar. Turnos já abertos (inclusive os que atravessam pra dentro
+    // de um dia de folga, ou vigia — que nunca tem folga programada) nunca caem
+    // aqui, porque `openShift` estaria definido.
+    const restDayPunchBlocked = isRestDay && !openShift && !config.doesOvertime;
+    const expectedNextType = restDayPunchBlocked ? null : computeExpectedNextType(openShift, config);
 
     // Uma entrada só é "primeira do turno" pra fins de desvio se: (a) o turno aberto
     // atual ainda não tem uma entrada registrada (evita comparar contra entryTime uma
@@ -104,5 +117,5 @@ export function evaluatePunch(input: EvaluatePunchInput): EvaluatePunchResult {
         overtimePreview = computeOvertimeForClosedShift({ shiftWorkedMinutes: workedMinutes, config });
     }
 
-    return { isRestDay, scheduleDeviation, usedPunchTypes, expectedNextType, overtimePreview };
+    return { isRestDay, scheduleDeviation, usedPunchTypes, expectedNextType, overtimePreview, restDayPunchBlocked };
 }

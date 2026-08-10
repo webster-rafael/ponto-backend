@@ -49,7 +49,7 @@ export class CreateTimeRecordUseCase {
 
         // Mesma decisão exposta em GET /punch-preview: o que o app viu antes de bater
         // é, por construção, o que a gravação aplica.
-        const { isExtraOnRestDay, scheduleDeviation, usedPunchTypes, overtimePreview } =
+        const { isExtraOnRestDay, scheduleDeviation, usedPunchTypes, overtimePreview, restDayPunchBlocked } =
             await new PreviewPunchUseCase().execute({
                 userId,
                 type,
@@ -63,6 +63,15 @@ export class CreateTimeRecordUseCase {
         // rejeitada aqui — só gera aviso no cliente.
         if (usedPunchTypes.includes(type as typeof usedPunchTypes[number])) {
             throw new InvalidPunchError(`Já existe uma batida do tipo '${type}' no turno aberto.`)
+        }
+
+        // Regra dura: sem turno aberto pra continuar, num dia de folga programada,
+        // pra um colaborador sem autorização de hora extra (does_overtime) — bater
+        // ponto começaria um turno novo num dia em que ele não deveria trabalhar.
+        // Nunca bloqueia a continuação/fechamento de um turno já aberto (turno
+        // noturno, multi-dia, vigia em viagem).
+        if (restDayPunchBlocked) {
+            throw new InvalidPunchError("Hoje é seu dia de folga e você não está autorizado a fazer hora extra — não é possível bater ponto.")
         }
 
         if (type === "saida" && overtimePreview && !overtimeJustificationReason?.trim()) {

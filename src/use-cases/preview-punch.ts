@@ -16,6 +16,7 @@ export interface PreviewPunchUseCaseResponse {
     usedPunchTypes: PunchType[]
     expectedNextType: PunchType | null
     overtimePreview: { minutes: number } | null
+    restDayPunchBlocked: boolean
 }
 
 // Janela de registros recentes usada pra reconstruir os turnos do colaborador — 30
@@ -78,6 +79,7 @@ export class PreviewPunchUseCase {
             usedPunchTypes: result.usedPunchTypes,
             expectedNextType: result.expectedNextType,
             overtimePreview: result.overtimePreview,
+            restDayPunchBlocked: result.restDayPunchBlocked,
         }
     }
 }

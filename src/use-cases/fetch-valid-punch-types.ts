@@ -10,6 +10,7 @@ interface FetchValidPunchTypesUseCaseRequest {
 export interface FetchValidPunchTypesUseCaseResponse {
     usedPunchTypes: PunchType[]
     expectedNextType: PunchType | null
+    restDayPunchBlocked: boolean
 }
 
 // Mesma janela generosa de preview-punch.ts — turnos podem ficar abertos por dias
@@ -59,6 +60,10 @@ export class FetchValidPunchTypesUseCase {
             },
         })
 
-        return { usedPunchTypes: result.usedPunchTypes, expectedNextType: result.expectedNextType }
+        return {
+            usedPunchTypes: result.usedPunchTypes,
+            expectedNextType: result.expectedNextType,
+            restDayPunchBlocked: result.restDayPunchBlocked,
+        }
     }
 }
