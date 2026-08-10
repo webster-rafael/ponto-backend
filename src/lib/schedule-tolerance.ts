@@ -1,3 +1,5 @@
+// superseded pelo ponto-engine (src/lib/ponto-engine/) — sem novos chamadores,
+// mantido só pra não quebrar nada que ainda não migrou.
 export const TOLERANCE_MINUTES = 15;
 
 export type ScheduleDeviationType =

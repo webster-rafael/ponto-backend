@@ -45,11 +45,13 @@ model User {
   lunch_start    String?
   lunch_end      String?
   exit_time      String?
+  does_overtime  Boolean         @default(false)
   push_token     String?
   justifications Justification[]
   patrol_points  PatrolPoint[]
   route_logs     RouteLog[]
   records        TimeRecord[]
+  manual_punch_requests ManualPunchRequest[]
   company        Company         @relation(fields: [company_id], references: [id])
   post_id        String?
   post           WorkPost?       @relation(fields: [post_id], references: [id], onDelete: SetNull)
@@ -87,9 +89,32 @@ model TimeRecord {
   schedule_deviation_minutes        Int?
   schedule_deviation_type           String?
   requires_schedule_justification   Boolean  @default(false)
+  overtime_minutes                  Int?
+  requires_overtime_justification   Boolean  @default(false)
+  overtime_justification_reason     String?
+  overtime_justification_status     String?
+  source_manual_request_id          String?
   user                 User     @relation(fields: [user_id], references: [id])
 
   @@map("time_records")
+  @@schema("public")
+}
+
+model ManualPunchRequest {
+  id                      String    @id @default(uuid())
+  user_id                 String
+  user                    User      @relation(fields: [user_id], references: [id])
+  type                    String
+  requested_timestamp     DateTime
+  justification           String
+  status                  String    @default("PENDING")
+  rejection_reason        String?
+  reviewed_by             String?
+  reviewed_at             DateTime?
+  created_time_record_id  String?
+  created_at              DateTime  @default(now())
+
+  @@map("manual_punch_requests")
   @@schema("public")
 }
 
@@ -125,12 +150,14 @@ model PatrolPoint {
 }
 
 model PatrolCheckin {
-  id               String      @id @default(uuid())
-  patrol_point_id  String
-  start_timestamp  DateTime
-  end_timestamp    DateTime?
-  duration_seconds Int?
-  patrol_point     PatrolPoint @relation(fields: [patrol_point_id], references: [id])
+  id                String      @id @default(uuid())
+  patrol_point_id   String
+  start_timestamp   DateTime
+  end_timestamp     DateTime?
+  duration_seconds  Int?
+  checkin_latitude  Float?
+  checkin_longitude Float?
+  patrol_point      PatrolPoint @relation(fields: [patrol_point_id], references: [id])
 
   @@map("patrol_checkins")
   @@schema("public")

@@ -1,3 +1,5 @@
+// superseded pelo ponto-engine (src/lib/ponto-engine/rest-day.ts) — sem novos
+// chamadores, mantido só pra não quebrar nada que ainda não migrou.
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function toCuiabaDateParts(date: Date) {

@@ -15,9 +15,10 @@ export async function createTimeRecord(request: FastifyRequest, reply: FastifyRe
         // O horário real de Cuiabá é sempre gerado pelo servidor.
         isOutOfRange: z.boolean().optional(),
         outOfRangeReason: z.string().optional(),
+        overtimeJustificationReason: z.string().optional(),
     })
 
-    const { userId, type, latitude, longitude, photoUrl, ip, isOutOfRange, outOfRangeReason } = createTimeRecordBodySchema.parse(request.body)
+    const { userId, type, latitude, longitude, photoUrl, ip, isOutOfRange, outOfRangeReason, overtimeJustificationReason } = createTimeRecordBodySchema.parse(request.body)
 
     try {
         const timeRecordsRepository = new PrismaTimeRecordsRepository()
@@ -32,6 +33,7 @@ export async function createTimeRecord(request: FastifyRequest, reply: FastifyRe
             ip: ip ?? undefined,
             isOutOfRange: isOutOfRange ?? false,
             outOfRangeReason: outOfRangeReason ?? undefined,
+            overtimeJustificationReason: overtimeJustificationReason ?? undefined,
         })
 
         return reply.status(201).send(timeRecord)

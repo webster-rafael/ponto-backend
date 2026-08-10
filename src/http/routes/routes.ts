@@ -7,9 +7,18 @@ import { createTimeRecord } from "../controllers/create-time-record"
 import { fetchUserTimeRecords } from "../controllers/fetch-user-time-records"
 import { fetchActiveShift } from "../controllers/fetch-active-shift"
 import { punchPreview } from "../controllers/punch-preview"
+import { fetchValidPunchTypes } from "../controllers/fetch-valid-punch-types"
+import { updateOvertimeJustificationStatus } from "../controllers/update-overtime-justification-status"
+import { createManualPunchRequest } from "../controllers/create-manual-punch-request"
+import { fetchUserManualPunchRequests } from "../controllers/fetch-user-manual-punch-requests"
+import { approveManualPunchRequest } from "../controllers/approve-manual-punch-request"
+import { rejectManualPunchRequest } from "../controllers/reject-manual-punch-request"
+import { fetchAttendanceSummaryBatch } from "../controllers/fetch-attendance-summary-batch"
+import { fetchAttendanceSummary } from "../controllers/fetch-attendance-summary"
 import { updateProfile } from "../controllers/update-profile"
 import { updatePassword } from "../controllers/update-password"
 import { verifyJwt } from "../middlewares/verify-jwt"
+import { verifyInternalKey } from "../middlewares/verify-internal-key"
 import { startRoute } from "../controllers/start-route"
 import { stopRoute } from "../controllers/stop-route"
 import { fetchUserRouteLogs } from "../controllers/fetch-user-route-logs"
@@ -44,6 +53,16 @@ export async function appRoutes(app: FastifyInstance) {
     app.get('/time-records', fetchUserTimeRecords)
     app.get('/active-shift', fetchActiveShift)
     app.get('/punch-preview', punchPreview)
+    app.get('/punch-preview/valid-types', fetchValidPunchTypes)
+    app.patch('/time-records/:id/overtime-justification-status', { onRequest: [verifyInternalKey] }, updateOvertimeJustificationStatus)
+
+    app.post('/manual-punch-requests', { onRequest: [verifyJwt] }, createManualPunchRequest)
+    app.get('/manual-punch-requests', { onRequest: [verifyJwt] }, fetchUserManualPunchRequests)
+    app.post('/manual-punch-requests/:id/approve', { onRequest: [verifyInternalKey] }, approveManualPunchRequest)
+    app.post('/manual-punch-requests/:id/reject', { onRequest: [verifyInternalKey] }, rejectManualPunchRequest)
+
+    app.post('/attendance-summary/batch', { onRequest: [verifyInternalKey] }, fetchAttendanceSummaryBatch)
+    app.get('/attendance-summary', { onRequest: [verifyJwt] }, fetchAttendanceSummary)
 
     /** Authenticated */
     app.get('/me', { onRequest: [verifyJwt] }, getProfile)

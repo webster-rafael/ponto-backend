@@ -5,6 +5,7 @@ import { appRoutes } from "./http/routes/routes"
 import { ZodError } from "zod"
 import dotenv from 'dotenv';
 import cors from '@fastify/cors'
+import { InvalidPunchError } from "./use-cases/errors/invalid-punch-error"
 
 dotenv.config();
 
@@ -54,6 +55,10 @@ app.setErrorHandler((error, _, reply) => {
         return reply
             .status(400)
             .send({ message: 'Validation error.', issues: error.format() })
+    }
+
+    if (error instanceof InvalidPunchError) {
+        return reply.status(400).send({ message: error.message })
     }
 
     if (process.env.NODE_ENV !== 'production') {
