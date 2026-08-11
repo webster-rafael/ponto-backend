@@ -90,6 +90,7 @@ export class SendPunchRemindersUseCase {
                 if (alreadyPunched) continue
 
                 const message = MESSAGES[type]
+                console.log(`[punch-reminders] enviando "${type}" pra ${user.id} (token ${user.push_token.slice(0, 24)}...)`)
                 await sendPush(user.push_token, message.title, message.body, { type: "punch_reminder", punchType: type })
                 sent++
             }
