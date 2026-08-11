@@ -42,34 +42,19 @@ export class PrismaTimeRecordsRepository implements ITimeRecordsRepository {
     }
 
     async fetchActiveShift(userId: string, options?: { maxAgeHours?: number }): Promise<TimeRecord[]> {
-        // Por padrão, 18h cobre turnos reais longos.
-        // Escalas especiais podem ampliar essa janela sem mudar o fluxo comum.
-        const maxAgeHours = options?.maxAgeHours ?? 18
+        // Janela ampla o bastante pra pegar a entrada de abertura de um turno
+        // esquecido ou legitimamente longo (vigia em viagem) — quem decide se o
+        // turno ainda está aberto é o motor de turnos (ponto-engine), não este
+        // método: ele só devolve os registros recentes pra o use-case agrupar.
+        const maxAgeHours = options?.maxAgeHours ?? 24 * 30
         const since = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000)
 
-        const recent = await prisma.timeRecord.findMany({
+        return prisma.timeRecord.findMany({
             where: {
                 user_id: userId,
                 timestamp: { gte: since },
             },
-            orderBy: { timestamp: 'desc' },
+            orderBy: { timestamp: 'asc' },
         })
-
-        if (recent.length === 0) return []
-
-        // Se o registro mais recente é saida, não há turno aberto
-        if (recent[0].type === 'saida') return []
-
-        // Retorna todos os registros do turno aberto (mesmo grupo contíguo)
-        // Um novo turno começa após uma saida, então pegamos tudo até a última saida (exclusive)
-        const shiftRecords: TimeRecord[] = []
-        for (const record of recent) {
-            if (record.type === 'saida') break
-            shiftRecords.push(record)
-        }
-
-        // Inclui a última saida se existir (para ter o contexto completo do grupo anterior)
-        // Na prática retornamos só os registros sem saida — o frontend determina o próximo passo
-        return shiftRecords
     }
 }
