@@ -1,6 +1,6 @@
 import { diffInCuiabaCalendarDays, parseHHMM, toCuiabaDateKey } from "./cuiaba-time";
 import { computeIsRestDay } from "./rest-day";
-import { EmployeeScheduleConfig, TOLERANCE_MINUTES } from "./scale-config";
+import { EmployeeScheduleConfig, hasLunch, TOLERANCE_MINUTES } from "./scale-config";
 import { groupIntoShifts, Shift, ShiftRecord } from "./shift-grouping";
 import { buildWorkedIntervals, totalWorkedMinutes, WorkedInterval } from "./worked-minutes";
 
@@ -104,6 +104,41 @@ function computeWindowClippedMinutes(
     return { normalMinutes, extraMinutes };
 }
 
+function computeContractedMinutes(windowStart: number, windowEnd: number, lunchDurationMinutes: number): number {
+    return Math.max(0, (windowEnd - windowStart) / 60000 - lunchDurationMinutes);
+}
+
+/**
+ * Saldo do dia = tempo trabalhado (já excluindo o almoço, via os intervalos reais)
+ * menos a carga contratada (janela entrada→saída menos o almoço). Entrada atrasada
+ * ou saída antecipada dentro dos 15min de tolerância não desconta nada (conta como
+ * se tivesse batido no horário certo); além da tolerância, desconta só o excedente
+ * de verdade — nunca a jornada inteira.
+ */
+function computeBalanceMinutes(
+    dayIntervals: WorkedInterval[],
+    windowStart: number,
+    windowEnd: number,
+    lunchDurationMinutes: number
+): number {
+    const contractedMinutes = computeContractedMinutes(windowStart, windowEnd, lunchDurationMinutes);
+    const total = totalWorkedMinutes(dayIntervals);
+    if (dayIntervals.length === 0) return -contractedMinutes;
+
+    const toleranceMs = TOLERANCE_MINUTES * 60000;
+    const sorted = [...dayIntervals].sort((a, b) => a.start.getTime() - b.start.getTime());
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+
+    const lateStartMs = Math.max(0, first.start.getTime() - windowStart);
+    const earlyEndMs = Math.max(0, windowEnd - last.end.getTime());
+    const forgivenMinutes =
+        (lateStartMs <= toleranceMs ? lateStartMs : 0) / 60000 +
+        (earlyEndMs <= toleranceMs ? earlyEndMs : 0) / 60000;
+
+    return total + forgivenMinutes - contractedMinutes;
+}
+
 function buildPendingItems(records: DaySummaryTimeRecord[]): PendingItem[] {
     const items: PendingItem[] = [];
     for (const r of records) {
@@ -158,6 +193,21 @@ export function buildDaySummaries(params: {
     const entryMinutes = entryHHMM ? entryHHMM.hours * 60 + entryHHMM.minutes : null;
     const exitMinutes = exitHHMM ? exitHHMM.hours * 60 + exitHHMM.minutes : null;
 
+    // A carga contratada do dia é a janela entrada→saída MENOS o almoço — sem isso, o
+    // saldo descontava a hora de almoço inteira todo santo dia, mesmo pra quem bateu
+    // ponto certinho (bug real: 5x2 com 1h15 de almoço aparecia com -1h15 de saldo
+    // mesmo tendo cumprido a jornada inteira).
+    let lunchDurationMinutes = 0;
+    if (hasLunch(config)) {
+        const lunchStartHHMM = config.lunchStart ? parseHHMM(config.lunchStart) : null;
+        const lunchEndHHMM = config.lunchEnd ? parseHHMM(config.lunchEnd) : null;
+        if (lunchStartHHMM && lunchEndHHMM) {
+            const lunchStartMinutes = lunchStartHHMM.hours * 60 + lunchStartHHMM.minutes;
+            const lunchEndMinutes = lunchEndHHMM.hours * 60 + lunchEndHHMM.minutes;
+            lunchDurationMinutes = Math.max(0, lunchEndMinutes - lunchStartMinutes);
+        }
+    }
+
     const summaries: DaySummary[] = [];
     for (let cursor = new Date(`${fromDateKey}T12:00:00.000Z`); toCuiabaDateKey(cursor) <= toDateKey; cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000)) {
         const dateKey = toCuiabaDateKey(cursor);
@@ -188,24 +238,28 @@ export function buildDaySummaries(params: {
             const clipped = computeWindowClippedMinutes(dayIntervals, recordsById, windowStart, windowEnd, dayJustifiedApproved);
             normalMinutes = clipped.normalMinutes;
             extraMinutes = clipped.extraMinutes;
-            balanceMinutes = total - Math.max(0, (windowEnd - windowStart) / 60000);
-        }
+            balanceMinutes = computeBalanceMinutes(dayIntervals, windowStart, windowEnd, lunchDurationMinutes);
 
-        // does_overtime=true substitui a coluna única de "Hora Extra" pelo novo cálculo
-        // (excedente sobre a carga contratada, já computado e persistido na batida de
-        // saída) em vez do cálculo de janela acima — decisão #6 do plano: uma coluna só.
-        if (config.doesOvertime) {
-            const overtimeRecords = dayRecordEntities.filter((r) => r.requires_overtime_justification);
-            const approvedOvertimeMinutes = overtimeRecords
-                .filter((r) => r.overtime_justification_status === "APPROVED")
-                .reduce((sum, r) => sum + (r.overtime_minutes ?? 0), 0);
-            const pendingOrRejectedOvertimeMinutes = overtimeRecords
-                .filter((r) => r.overtime_justification_status !== "APPROVED")
-                .reduce((sum, r) => sum + (r.overtime_minutes ?? 0), 0);
+            // does_overtime=true substitui a coluna única de "Hora Extra" pelo novo
+            // cálculo (excedente sobre a carga contratada, já computado e persistido na
+            // batida de saída) em vez do cálculo de janela acima — decisão #6 do plano:
+            // uma coluna só. O saldo é sempre bruto (reflete o tempo trabalhado de
+            // verdade), mas a hora extra só ENTRA nesse saldo depois que o RH aprova —
+            // enquanto pendente ou reprovada, ela simplesmente não conta (nem a favor,
+            // nem contra), igual já acontecia em normalMinutes/extraMinutes.
+            if (config.doesOvertime) {
+                const overtimeRecords = dayRecordEntities.filter((r) => r.requires_overtime_justification);
+                const approvedOvertimeMinutes = overtimeRecords
+                    .filter((r) => r.overtime_justification_status === "APPROVED")
+                    .reduce((sum, r) => sum + (r.overtime_minutes ?? 0), 0);
+                const pendingOrRejectedOvertimeMinutes = overtimeRecords
+                    .filter((r) => r.overtime_justification_status !== "APPROVED")
+                    .reduce((sum, r) => sum + (r.overtime_minutes ?? 0), 0);
 
-            if (!restDay) {
                 extraMinutes = approvedOvertimeMinutes;
                 normalMinutes = Math.max(0, total - approvedOvertimeMinutes - pendingOrRejectedOvertimeMinutes);
+                const contractedMinutes = computeContractedMinutes(windowStart, windowEnd, lunchDurationMinutes);
+                balanceMinutes = normalMinutes + extraMinutes - contractedMinutes;
             }
         }
 

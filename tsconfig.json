@@ -19,6 +19,7 @@
         "node_modules",
         "build",
         "test-*.ts",
-        "check-*.ts"
+        "check-*.ts",
+        "**/*.test.ts"
     ]
 }
