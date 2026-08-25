@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { sendPush } from "@/lib/send-push"
+import { notifyUser } from "@/lib/notify-user"
 
 export async function updateOvertimeJustificationStatus(request: FastifyRequest, reply: FastifyReply) {
     const paramsSchema = z.object({ id: z.string().uuid() })
@@ -27,13 +27,14 @@ export async function updateOvertimeJustificationStatus(request: FastifyRequest,
 
     if (status === "APPROVED") {
         const user = await prisma.user.findUnique({ where: { id: record.user_id } })
-        if (user?.push_token) {
-            sendPush(
-                user.push_token,
-                "Hora extra aprovada ✓",
-                "Sua justificativa de hora extra foi aprovada pelo RH.",
-                { type: "overtime_justification_approved", recordId: id }
-            )
+        if (user) {
+            notifyUser({
+                userId: user.id,
+                pushToken: user.push_token,
+                title: "Hora extra aprovada ✓",
+                body: "Sua justificativa de hora extra foi aprovada pelo RH.",
+                data: { type: "overtime_justification_approved", recordId: id },
+            })
         }
     }
 

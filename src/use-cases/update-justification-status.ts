@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { sendPush } from "@/lib/send-push"
+import { notifyUser } from "@/lib/notify-user"
 import { Justification, JustificationStatus } from "@prisma/client"
 
 interface UpdateJustificationStatusRequest {
@@ -29,13 +29,14 @@ export class UpdateJustificationStatusUseCase {
 
         if (status === 'APPROVED') {
             const user = await prisma.user.findUnique({ where: { id: justification.user_id } })
-            if (user?.push_token) {
-                sendPush(
-                    user.push_token,
-                    "Justificativa aprovada ✓",
-                    "Sua justificativa de falta foi aprovada pelo RH.",
-                    { type: "justification_approved", justificationId }
-                )
+            if (user) {
+                notifyUser({
+                    userId: user.id,
+                    pushToken: user.push_token,
+                    title: "Justificativa aprovada ✓",
+                    body: "Sua justificativa de falta foi aprovada pelo RH.",
+                    data: { type: "justification_approved", justificationId },
+                })
             }
         }
 

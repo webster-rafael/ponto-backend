@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { sendPush } from "@/lib/send-push"
+import { notifyUser } from "@/lib/notify-user"
 import { computeIsRestDay } from "@/lib/ponto-engine/rest-day"
 import { cuiabaDayBoundsUtc, diffInCuiabaCalendarDays, minutesOfDayInCuiaba, parseHHMM } from "@/lib/ponto-engine/cuiaba-time"
 import { PunchType } from "@/lib/ponto-engine/scale-config"
@@ -91,7 +91,13 @@ export class SendPunchRemindersUseCase {
 
                 const message = MESSAGES[type]
                 console.log(`[punch-reminders] enviando "${type}" pra ${user.id} (token ${user.push_token.slice(0, 24)}...)`)
-                await sendPush(user.push_token, message.title, message.body, { type: "punch_reminder", punchType: type })
+                await notifyUser({
+                    userId: user.id,
+                    pushToken: user.push_token,
+                    title: message.title,
+                    body: message.body,
+                    data: { type: "punch_reminder", punchType: type },
+                })
                 sent++
             }
         }

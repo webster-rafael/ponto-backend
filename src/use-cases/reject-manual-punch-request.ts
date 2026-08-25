@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { sendPush } from "@/lib/send-push"
+import { notifyUser } from "@/lib/notify-user"
 import { ManualPunchRequest } from "@prisma/client"
 
 interface RejectManualPunchRequestUseCaseRequest {
@@ -29,13 +29,14 @@ export class RejectManualPunchRequestUseCase {
         })
 
         const user = await prisma.user.findUnique({ where: { id: manualPunchRequest.user_id } })
-        if (user?.push_token) {
-            sendPush(
-                user.push_token,
-                "Registro manual rejeitado",
-                reason ? `Seu ponto retroativo foi rejeitado: ${reason}` : "Seu ponto retroativo foi rejeitado pelo RH.",
-                { type: "manual_punch_rejected", manualPunchRequestId: manualPunchRequest.id }
-            )
+        if (user) {
+            notifyUser({
+                userId: user.id,
+                pushToken: user.push_token,
+                title: "Registro manual rejeitado",
+                body: reason ? `Seu ponto retroativo foi rejeitado: ${reason}` : "Seu ponto retroativo foi rejeitado pelo RH.",
+                data: { type: "manual_punch_rejected", manualPunchRequestId: manualPunchRequest.id },
+            })
         }
 
         return { manualPunchRequest: updated }

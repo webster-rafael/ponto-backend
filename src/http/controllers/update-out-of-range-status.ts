@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify"
 import { z } from "zod"
 import { PrismaClient } from "@prisma/client"
-import { sendPush } from "@/lib/send-push"
+import { notifyUser } from "@/lib/notify-user"
 
 const prisma = new PrismaClient()
 
@@ -34,13 +34,14 @@ export async function updateOutOfRangeStatus(request: FastifyRequest, reply: Fas
 
     if (status === 'APPROVED') {
         const user = await prisma.user.findUnique({ where: { id: record.user_id } })
-        if (user?.push_token) {
-            sendPush(
-                user.push_token,
-                "Ponto aprovado ✓",
-                "Seu registro fora do raio foi aprovado pelo RH.",
-                { type: "out_of_range_approved", recordId: id }
-            )
+        if (user) {
+            notifyUser({
+                userId: user.id,
+                pushToken: user.push_token,
+                title: "Ponto aprovado ✓",
+                body: "Seu registro fora do raio foi aprovado pelo RH.",
+                data: { type: "out_of_range_approved", recordId: id },
+            })
         }
     }
 

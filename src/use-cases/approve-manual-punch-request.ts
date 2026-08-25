@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { sendPush } from "@/lib/send-push"
+import { notifyUser } from "@/lib/notify-user"
 import { CreateTimeRecordUseCase } from "@/use-cases/create-time-record"
 import { PrismaTimeRecordsRepository } from "@/repositories/prisma/prisma-time-records-repository"
 import { ManualPunchRequest } from "@prisma/client"
@@ -50,13 +50,14 @@ export class ApproveManualPunchRequestUseCase {
         })
 
         const user = await prisma.user.findUnique({ where: { id: manualPunchRequest.user_id } })
-        if (user?.push_token) {
-            sendPush(
-                user.push_token,
-                "Registro manual aprovado ✓",
-                "Seu ponto retroativo foi aprovado pelo RH.",
-                { type: "manual_punch_approved", manualPunchRequestId: manualPunchRequest.id }
-            )
+        if (user) {
+            notifyUser({
+                userId: user.id,
+                pushToken: user.push_token,
+                title: "Registro manual aprovado ✓",
+                body: "Seu ponto retroativo foi aprovado pelo RH.",
+                data: { type: "manual_punch_approved", manualPunchRequestId: manualPunchRequest.id },
+            })
         }
 
         return { manualPunchRequest: updated }

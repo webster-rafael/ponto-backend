@@ -52,11 +52,26 @@ model User {
   route_logs     RouteLog[]
   records        TimeRecord[]
   manual_punch_requests ManualPunchRequest[]
+  notifications  Notification[]
   company        Company         @relation(fields: [company_id], references: [id])
   post_id        String?
   post           WorkPost?       @relation(fields: [post_id], references: [id], onDelete: SetNull)
 
   @@map("users")
+  @@schema("public")
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id])
+  title      String
+  body       String
+  data       Json?
+  read       Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  @@map("notifications")
   @@schema("public")
 }
 

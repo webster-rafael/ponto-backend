@@ -39,6 +39,9 @@ import { fetchWorkPosts } from "../controllers/fetch-work-posts"
 import { createWorkPost } from "../controllers/create-work-post"
 import { serverTime } from "../controllers/server-time"
 import { getProfile } from "../controllers/get-profile"
+import { fetchUserNotifications } from "../controllers/fetch-user-notifications"
+import { markNotificationRead } from "../controllers/mark-notification-read"
+import { markAllNotificationsRead } from "../controllers/mark-all-notifications-read"
 
 export async function appRoutes(app: FastifyInstance) {
     app.get('/server-time', serverTime)
@@ -85,5 +88,9 @@ export async function appRoutes(app: FastifyInstance) {
     app.patch('/time-records/:id/out-of-range-status', updateOutOfRangeStatus)
 
     app.patch('/push-token', { onRequest: [verifyJwt] }, updatePushToken)
+
+    app.get('/notifications', { onRequest: [verifyJwt] }, fetchUserNotifications)
+    app.patch('/notifications/:id/read', { onRequest: [verifyJwt] }, markNotificationRead)
+    app.patch('/notifications/read-all', { onRequest: [verifyJwt] }, markAllNotificationsRead)
 }
 
