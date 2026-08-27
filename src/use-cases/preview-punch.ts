@@ -1,13 +1,20 @@
 import { prisma } from "@/lib/prisma"
-import { evaluatePunch } from "@/lib/ponto-engine/punch-engine"
+import { evaluatePunch, ForgottenSaidaInfo } from "@/lib/ponto-engine/punch-engine"
 import { PunchType } from "@/lib/ponto-engine/scale-config"
 import { Deviation } from "@/lib/ponto-engine/schedule-window"
 import { ShiftRecord } from "@/lib/ponto-engine/shift-grouping"
+import { mergePendingManualRequests } from "@/lib/ponto-engine/pending-manual-requests"
 
 interface PreviewPunchUseCaseRequest {
     userId: string
     type: string
     timestamp?: Date
+    // Usado só pela aprovação de registro manual (ApproveManualPunchRequestUseCase):
+    // exclui o próprio pedido sendo aprovado da injeção de pendências (ver
+    // mergePendingManualRequests) — senão o turno seria fechado por um registro
+    // sintético do PRÓPRIO pedido antes mesmo do fechamento real ser avaliado,
+    // zerando a prévia de hora extra/desvio que a aprovação depende.
+    excludeManualRequestId?: string
 }
 
 export interface PreviewPunchUseCaseResponse {
@@ -17,6 +24,7 @@ export interface PreviewPunchUseCaseResponse {
     expectedNextType: PunchType | null
     overtimePreview: { minutes: number } | null
     restDayPunchBlocked: boolean
+    forgottenSaida: ForgottenSaidaInfo | null
 }
 
 // Janela de registros recentes usada pra reconstruir os turnos do colaborador — 30
@@ -35,7 +43,7 @@ const RECENT_RECORDS_WINDOW_HOURS = 24 * 30
  * garantindo que app e servidor nunca discordem sobre a mesma regra.
  */
 export class PreviewPunchUseCase {
-    async execute({ userId, type, timestamp }: PreviewPunchUseCaseRequest): Promise<PreviewPunchUseCaseResponse> {
+    async execute({ userId, type, timestamp, excludeManualRequestId }: PreviewPunchUseCaseRequest): Promise<PreviewPunchUseCaseResponse> {
         const now = timestamp ?? new Date()
         const user = await prisma.user.findUnique({
             where: { id: userId },
@@ -51,12 +59,25 @@ export class PreviewPunchUseCase {
         })
 
         const since = new Date(now.getTime() - RECENT_RECORDS_WINDOW_HOURS * 60 * 60 * 1000)
-        const recentRecords: ShiftRecord[] = (
-            await prisma.timeRecord.findMany({
+        const [records, pendingSaidaRequests] = await Promise.all([
+            prisma.timeRecord.findMany({
                 where: { user_id: userId, timestamp: { gte: since, lte: now } },
                 orderBy: { timestamp: "asc" },
-            })
-        ).map(r => ({ id: r.id, type: r.type, timestamp: r.timestamp }))
+            }),
+            prisma.manualPunchRequest.findMany({
+                where: {
+                    user_id: userId,
+                    status: "PENDING",
+                    type: "saida",
+                    ...(excludeManualRequestId ? { id: { not: excludeManualRequestId } } : {}),
+                },
+                select: { id: true, type: true, requested_timestamp: true },
+            }),
+        ])
+        const recentRecords: ShiftRecord[] = mergePendingManualRequests(
+            records.map(r => ({ id: r.id, type: r.type, timestamp: r.timestamp })),
+            pendingSaidaRequests
+        )
 
         const result = evaluatePunch({
             punchType: type as PunchType,
@@ -80,6 +101,7 @@ export class PreviewPunchUseCase {
             expectedNextType: result.expectedNextType,
             overtimePreview: result.overtimePreview,
             restDayPunchBlocked: result.restDayPunchBlocked,
+            forgottenSaida: result.forgottenSaida,
         }
     }
 }

@@ -1,4 +1,4 @@
-import { toCuiabaDateKey } from "./cuiaba-time";
+import { parseHHMM, toCuiabaDateKey } from "./cuiaba-time";
 import { computeOvertimeForClosedShift } from "./overtime";
 import { computeIsRestDay, hasScheduledRestDayGap } from "./rest-day";
 import { EmployeeScheduleConfig, hasLunch, isPunchType, PunchType } from "./scale-config";
@@ -14,6 +14,15 @@ export interface EvaluatePunchInput {
     // reconstruir os turnos e decidir tudo abaixo. O chamador escolhe o tamanho da
     // janela (recomendado: 48h, cobre folgamente até a escala 24x48).
     recentRecords: ShiftRecord[];
+}
+
+export interface ForgottenSaidaInfo {
+    // Dia (Cuiabá) em que o turno esquecido começou — é a data que o pedido de
+    // registro manual retroativo (saída) deve usar.
+    shiftStartDateKey: string;
+    // Último registro real desse turno — usado só de referência (ex: sugerir um
+    // horário de saída no formulário).
+    lastRecordTimestamp: Date;
 }
 
 export interface EvaluatePunchResult {
@@ -34,6 +43,41 @@ export interface EvaluatePunchResult {
     // que já estava aberto (turno noturno, multi-dia, vigia em viagem), só o início
     // de um turno novo no dia de folga em si.
     restDayPunchBlocked: boolean;
+    // Turno aberto que começou num dia calendário ANTERIOR a hoje, pra um
+    // colaborador com jornada configurada pra caber no mesmo dia (entrada < saída)
+    // — ou seja, ele esqueceu de bater a saída, não é um turno noturno/multi-dia de
+    // propósito. Só nesse caso o cliente deve travar a batida normal e mostrar o
+    // fluxo de "esqueci de bater o ponto" em vez do modal de 4 opções.
+    forgottenSaida: ForgottenSaidaInfo | null;
+}
+
+/**
+ * Detecta turno esquecido: aberto desde um dia calendário anterior, pra uma jornada
+ * que foi CONFIGURADA pra caber no mesmo dia (entrada < saída). Escalas sem horário
+ * fixo (vigia) ou com turno noturno configurado de propósito (saída <= entrada,
+ * atravessa a meia-noite por design) nunca caem aqui — pra elas, um turno aberto há
+ * mais de um dia é comportamento esperado, não um esquecimento.
+ */
+function detectForgottenSaida(
+    config: EmployeeScheduleConfig,
+    openShift: Shift | undefined,
+    now: Date
+): ForgottenSaidaInfo | null {
+    if (!openShift) return null;
+    if (!config.entryTime || !config.exitTime) return null;
+
+    const entry = parseHHMM(config.entryTime);
+    const exit = parseHHMM(config.exitTime);
+    if (!entry || !exit) return null;
+
+    const entryMinutes = entry.hours * 60 + entry.minutes;
+    const exitMinutes = exit.hours * 60 + exit.minutes;
+    if (exitMinutes <= entryMinutes) return null; // turno noturno configurado de propósito
+
+    if (openShift.startDateKey === toCuiabaDateKey(now)) return null; // ainda é hoje, turno em andamento normal
+
+    const lastRecord = openShift.records[openShift.records.length - 1];
+    return { shiftStartDateKey: openShift.startDateKey, lastRecordTimestamp: lastRecord.timestamp };
 }
 
 function computeExpectedNextType(openShift: Shift | undefined, config: EmployeeScheduleConfig): PunchType | null {
@@ -117,5 +161,7 @@ export function evaluatePunch(input: EvaluatePunchInput): EvaluatePunchResult {
         overtimePreview = computeOvertimeForClosedShift({ shiftWorkedMinutes: workedMinutes, config });
     }
 
-    return { isRestDay, scheduleDeviation, usedPunchTypes, expectedNextType, overtimePreview, restDayPunchBlocked };
+    const forgottenSaida = detectForgottenSaida(config, openShift, timestamp);
+
+    return { isRestDay, scheduleDeviation, usedPunchTypes, expectedNextType, overtimePreview, restDayPunchBlocked, forgottenSaida };
 }

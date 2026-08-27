@@ -49,12 +49,23 @@ export class CreateTimeRecordUseCase {
 
         // Mesma decisão exposta em GET /punch-preview: o que o app viu antes de bater
         // é, por construção, o que a gravação aplica.
-        const { isExtraOnRestDay, scheduleDeviation, usedPunchTypes, overtimePreview, restDayPunchBlocked } =
+        const { isExtraOnRestDay, scheduleDeviation, usedPunchTypes, overtimePreview, restDayPunchBlocked, forgottenSaida } =
             await new PreviewPunchUseCase().execute({
                 userId,
                 type,
                 timestamp: serverTimestamp,
+                excludeManualRequestId: sourceManualRequestId,
             })
+
+        // Regra dura: turno anterior esquecido (aberto desde um dia calendário
+        // anterior, numa jornada que cabia no mesmo dia) trava QUALQUER batida
+        // normal — o colaborador precisa passar pelo fluxo de "esqueci de bater o
+        // ponto" (cria um ManualPunchRequest retroativo) antes de continuar. Nunca
+        // se aplica à própria gravação retroativa (overrideTimestamp), que é
+        // exatamente o que resolve esse estado.
+        if (forgottenSaida && !overrideTimestamp) {
+            throw new InvalidPunchError("FORGOTTEN_SAIDA: Você tem um turno anterior sem o registro de saída. Justifique o esquecimento para continuar.")
+        }
 
         // Regra dura: repetir um tipo já batido no turno aberto é uma batida
         // duplicada (inconsistência de dado), não uma questão de ordem — isso é

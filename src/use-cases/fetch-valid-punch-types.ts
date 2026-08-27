@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma"
-import { evaluatePunch } from "@/lib/ponto-engine/punch-engine"
+import { evaluatePunch, ForgottenSaidaInfo } from "@/lib/ponto-engine/punch-engine"
 import { PunchType } from "@/lib/ponto-engine/scale-config"
 import { ShiftRecord } from "@/lib/ponto-engine/shift-grouping"
+import { mergePendingManualRequests } from "@/lib/ponto-engine/pending-manual-requests"
 
 interface FetchValidPunchTypesUseCaseRequest {
     userId: string
@@ -11,6 +12,7 @@ export interface FetchValidPunchTypesUseCaseResponse {
     usedPunchTypes: PunchType[]
     expectedNextType: PunchType | null
     restDayPunchBlocked: boolean
+    forgottenSaida: ForgottenSaidaInfo | null
 }
 
 // Mesma janela generosa de preview-punch.ts — turnos podem ficar abertos por dias
@@ -36,12 +38,20 @@ export class FetchValidPunchTypesUseCase {
         })
 
         const since = new Date(now.getTime() - RECENT_RECORDS_WINDOW_HOURS * 60 * 60 * 1000)
-        const recentRecords: ShiftRecord[] = (
-            await prisma.timeRecord.findMany({
+        const [records, pendingSaidaRequests] = await Promise.all([
+            prisma.timeRecord.findMany({
                 where: { user_id: userId, timestamp: { gte: since, lte: now } },
                 orderBy: { timestamp: "asc" },
-            })
-        ).map(r => ({ id: r.id, type: r.type, timestamp: r.timestamp }))
+            }),
+            prisma.manualPunchRequest.findMany({
+                where: { user_id: userId, status: "PENDING", type: "saida" },
+                select: { id: true, type: true, requested_timestamp: true },
+            }),
+        ])
+        const recentRecords: ShiftRecord[] = mergePendingManualRequests(
+            records.map(r => ({ id: r.id, type: r.type, timestamp: r.timestamp })),
+            pendingSaidaRequests
+        )
 
         // punchType é só um valor dummy pra satisfazer a assinatura de evaluatePunch —
         // usedPunchTypes/expectedNextType não dependem dele.
@@ -64,6 +74,7 @@ export class FetchValidPunchTypesUseCase {
             usedPunchTypes: result.usedPunchTypes,
             expectedNextType: result.expectedNextType,
             restDayPunchBlocked: result.restDayPunchBlocked,
+            forgottenSaida: result.forgottenSaida,
         }
     }
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { TimeRecord } from "@prisma/client"
 import { groupIntoShifts, findOpenShift, ShiftRecord } from "@/lib/ponto-engine/shift-grouping"
 import { hasScheduledRestDayGap } from "@/lib/ponto-engine/rest-day"
+import { mergePendingManualRequests } from "@/lib/ponto-engine/pending-manual-requests"
 
 interface FetchActiveShiftUseCaseRequest {
     userId: string
@@ -29,7 +30,19 @@ export class FetchActiveShiftUseCase {
         // importa há quanto tempo ela aconteceu.
         const records = await this.timeRecordsRepository.fetchActiveShift(userId)
 
-        const shiftRecords: ShiftRecord[] = records.map(r => ({ id: r.id, type: r.type, timestamp: r.timestamp }))
+        // Pedido de registro manual retroativo (saída) ainda PENDENTE: enquanto o RH
+        // não aprova de verdade, ele já "resolve" o turno esquecido aqui — sem isso, o
+        // colaborador continuaria travado vendo o turno antigo como aberto até a
+        // aprovação sair, em vez de já poder bater o ponto do dia normalmente.
+        const pendingSaidaRequests = await prisma.manualPunchRequest.findMany({
+            where: { user_id: userId, status: "PENDING", type: "saida" },
+            select: { id: true, type: true, requested_timestamp: true },
+        })
+
+        const shiftRecords: ShiftRecord[] = mergePendingManualRequests(
+            records.map(r => ({ id: r.id, type: r.type, timestamp: r.timestamp })),
+            pendingSaidaRequests
+        )
         const shifts = groupIntoShifts(shiftRecords, config)
         const openShift = findOpenShift(shifts)
 
